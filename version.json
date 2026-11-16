@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
-  "jarUrl": "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.2/offline-billing-1.0.2.jar",
-  "notes": "Added All Bill History, Search, Auto-Clear & Calendar Picker"
+  "version": "1.0.3",
+  "jarUrl": "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.3/offline-billing-1.0.3.jar",
+  "notes": "Added Shortcuts to every window"
 }
