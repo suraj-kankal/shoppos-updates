@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $installDir = "$env:LOCALAPPDATA\ShopPOS"
 $jarPath = "$installDir\ShopPOS.jar"
-$jarUrl = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.1/offline-billing-1.0.1.jar"
+$versionJsonUrl = "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/version.json"
 
 Write-Host "Installing ShopPOS..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
@@ -14,7 +14,10 @@ if (-not (Get-Command javaw -ErrorAction SilentlyContinue)) {
     winget install --id EclipseAdoptium.Temurin.21.JRE -e --silent --accept-package-agreements --accept-source-agreements
 }
 
-Write-Host "Downloading ShopPOS v1.0.0..." -ForegroundColor Yellow
+$versionInfo = Invoke-RestMethod -Uri $versionJsonUrl
+$jarUrl = $versionInfo.jarUrl
+
+Write-Host "Downloading ShopPOS v$($versionInfo.version)..." -ForegroundColor Yellow
 Invoke-WebRequest -Uri $jarUrl -OutFile $jarPath -UseBasicParsing
 
 if (-not (Test-Path $jarPath)) {
@@ -29,5 +32,5 @@ $shortcut.Arguments = "-jar `"$jarPath`""
 $shortcut.WorkingDirectory = $installDir
 $shortcut.Save()
 
-Write-Host "ShopPOS installed! Launching..." -ForegroundColor Green
+Write-Host "ShopPOS v$($versionInfo.version) installed! Launching..." -ForegroundColor Green
 Start-Process "javaw.exe" -ArgumentList "-jar `"$jarPath`"" -WorkingDirectory $installDir
