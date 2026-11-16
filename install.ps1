@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 
 $installDir = "$env:LOCALAPPDATA\ShopPOS"
 $jarPath = "$installDir\ShopPOS.jar"
-$jarUrl = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/offline-billing-1.0.0.jar"
+$jarUrl = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.1/offline-billing-1.0.1.jar"
 
 Write-Host "Installing ShopPOS..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
