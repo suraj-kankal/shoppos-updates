@@ -24,16 +24,19 @@ if (-not (Test-Path $jarPath)) {
     throw "Download failed: $jarPath was not created."
 }
 
-# Create Desktop Shortcut
+# Remove old ShopPOS shortcut if present and create BillSetu Desktop Shortcut
+Remove-Item "$env:USERPROFILE\Desktop\ShopPOS.lnk" -ErrorAction SilentlyContinue
+
+$icoPath = "$installDir\billsetu.ico"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico" -OutFile $icoPath -UseBasicParsing
+
 $ws = New-Object -ComObject WScript.Shell
 $shortcut = $ws.CreateShortcut("$env:USERPROFILE\Desktop\BillSetu.lnk")
 $shortcut.TargetPath = "javaw.exe"
 $shortcut.Arguments = "-jar `"$jarPath`""
 $shortcut.WorkingDirectory = $installDir
-$icoPath = "$installDir\billsetu.ico"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico" -OutFile $icoPath -UseBasicParsing
 $shortcut.IconLocation = $icoPath
 $shortcut.Save()
 
-Write-Host "ShopPOS v$($versionInfo.version) installed! Launching..." -ForegroundColor Green
+Write-Host "BillSetu v$($versionInfo.version) installed! Launching..." -ForegroundColor Green
 Start-Process "javaw.exe" -ArgumentList "-jar `"$jarPath`"" -WorkingDirectory $installDir
