@@ -30,6 +30,9 @@ $shortcut = $ws.CreateShortcut("$env:USERPROFILE\Desktop\BillSetu.lnk")
 $shortcut.TargetPath = "javaw.exe"
 $shortcut.Arguments = "-jar `"$jarPath`""
 $shortcut.WorkingDirectory = $installDir
+$icoPath = "$installDir\billsetu.ico"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico" -OutFile $icoPath -UseBasicParsing
+$shortcut.IconLocation = $icoPath
 $shortcut.Save()
 
 Write-Host "ShopPOS v$($versionInfo.version) installed! Launching..." -ForegroundColor Green
