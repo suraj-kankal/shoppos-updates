@@ -1,5 +1,6 @@
 {
   "version": "1.0.33",
   "jarUrl": "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.33/offline-billing-1.0.33.jar",
-  "notes": "New Update Release."
+  "libsUrl": "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.33/libs.zip",
+  "notes": "New update released"
 }
