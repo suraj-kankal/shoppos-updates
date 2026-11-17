@@ -1,5 +1,5 @@
 {
-  "version": "1.0.3",
-  "jarUrl": "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.3/offline-billing-1.0.3.jar",
-  "notes": "Added Shortcuts to every window"
+  "version": "1.0.31",
+  "jarUrl": "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.31/offline-billing-1.0.31.jar",
+  "notes": "Rebranded to BillSetu, added Day/Month PDF Sales Reports, Bill History, Tax Inwarding, Trash Restore & Update Progress Bar"
 }
