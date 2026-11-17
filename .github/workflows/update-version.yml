@@ -1,0 +1,44 @@
+name: Auto Update version.json
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Update version.json from release
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          BODY: ${{ github.event.release.body }}
+          TITLE: ${{ github.event.release.name }}
+          ASSETS: ${{ toJson(github.event.release.assets) }}
+        run: |
+          VERSION="${TAG#v}"
+          JAR_URL=$(echo "$ASSETS" | jq -r '.[] | select(.name | endswith(".jar")) | .browser_download_url' | head -n 1)
+          NOTES=$(printf '%s' "${BODY:-$TITLE}" | tr '\r\n' ' ' | sed 's/  */ /g' | xargs)
+
+          if [ -z "$JAR_URL" ] || [ "$JAR_URL" = "null" ]; then
+            echo "No .jar asset found in release, skipping."
+            exit 0
+          fi
+
+          jq -n \
+            --arg version "$VERSION" \
+            --arg jarUrl "$JAR_URL" \
+            --arg notes "$NOTES" \
+            '{version: $version, jarUrl: $jarUrl, notes: $notes}' > version.json
+
+      - name: Commit and push version.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git diff --cached --quiet || (git commit -m "Auto-update version.json for ${{ github.event.release.tag_name }}" && git push)
