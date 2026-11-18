@@ -1,65 +1,82 @@
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-$installDir = "$env:LOCALAPPDATA\BillSetu"
-$oldDir = "$env:LOCALAPPDATA\ShopPOS"
-$libsDir = "$installDir\libs"
-$jarPath = "$installDir\BillSetu.jar"
-$versionJsonUrl = "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/version.json"
+$appName    = "BillSetu"
+$installDir = Join-Path $env:LOCALAPPDATA $appName
+$oldDir     = Join-Path $env:LOCALAPPDATA "ShopPOS"
+$libsDir    = Join-Path $installDir "libs"
+$jarPath    = Join-Path $installDir "BillSetu.jar"
+$iconPath   = Join-Path $installDir "billsetu.ico"
 
-Write-Host "Installing BillSetu..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+$jarUrl     = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/BillSetu-1.0.0.jar"
+$libsUrl    = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/libs.zip"
+$iconUrl    = "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico"
 
-# Migrate existing ShopPOS data (shop.db, storage, tokens) if upgrading on an existing PC
-if ((Test-Path "$oldDir\shop.db") -and (-not (Test-Path "$installDir\shop.db"))) {
-    Write-Host "Migrating existing database and bills to BillSetu..." -ForegroundColor Yellow
-    Copy-Item "$oldDir\shop.db" "$installDir\shop.db" -Force
-    if (Test-Path "$oldDir\storage") { Copy-Item "$oldDir\storage" "$installDir\storage" -Recurse -Force }
-    if (Test-Path "$oldDir\tokens") { Copy-Item "$oldDir\tokens" "$installDir\tokens" -Recurse -Force }
+Write-Host "Installing $appName..." -ForegroundColor Cyan
+
+# 1. Ensure Java is installed
+$javaw = Get-Command javaw.exe -ErrorAction SilentlyContinue
+if (-not $javaw) {
+    Write-Host "Java not found. Installing Eclipse Temurin JRE..." -ForegroundColor Yellow
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        winget install --id EclipseAdoptium.Temurin.21.JRE -e --silent --accept-package-agreements --accept-source-agreements
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        $javaw = Get-Command javaw.exe -ErrorAction SilentlyContinue
+    }
+    if (-not $javaw) {
+        throw "Java is required. Please install Java 17+ from https://adoptium.net and run the installer again."
+    }
 }
 
-# Check if Java is installed
-if (-not (Get-Command javaw -ErrorAction SilentlyContinue)) {
-    Write-Host "Java not found. Installing Java 21..." -ForegroundColor Yellow
-    winget install --id EclipseAdoptium.Temurin.21.JRE -e --silent --accept-package-agreements --accept-source-agreements
+# 2. Create install directory & migrate old ShopPOS data if present
+New-Item -ItemType Directory -Path $installDir -Force | Out-Null
+if ((Test-Path $oldDir) -and (-not (Test-Path (Join-Path $installDir "shop.db")))) {
+    Write-Host "Migrating existing ShopPOS data to BillSetu..." -ForegroundColor Yellow
+    if (Test-Path (Join-Path $oldDir "shop.db")) {
+        Copy-Item (Join-Path $oldDir "shop.db") (Join-Path $installDir "shop.db") -Force
+    }
+    if (Test-Path (Join-Path $oldDir "storage")) {
+        Copy-Item (Join-Path $oldDir "storage") (Join-Path $installDir "storage") -Recurse -Force
+    }
 }
 
-$versionInfo = Invoke-RestMethod -Uri $versionJsonUrl
-$jarUrl = $versionInfo.jarUrl
+# 3. Stop running BillSetu instance if open
+Get-CimInstance Win32_Process -Filter "Name = 'javaw.exe' OR Name = 'java.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like "*BillSetu.jar*" } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
-# Download shared libraries once (~61 MB)
-if (-not (Test-Path $libsDir) -or (Get-ChildItem $libsDir -Filter *.jar -ErrorAction SilentlyContinue).Count -eq 0) {
-    $libsZip = "$env:TEMP\billsetu_libs.zip"
-    $libsUrl = if ($versionInfo.libsUrl) { $versionInfo.libsUrl } else { "https://github.com/suraj-kankal/shoppos-updates/releases/download/v$($versionInfo.version)/libs.zip" }
-    Write-Host "Downloading required libraries (one-time setup)..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $libsUrl -OutFile $libsZip -UseBasicParsing
-    New-Item -ItemType Directory -Force -Path $libsDir | Out-Null
-    Expand-Archive -Path $libsZip -DestinationPath $libsDir -Force
-    Remove-Item $libsZip -ErrorAction SilentlyContinue
-}
-
-Write-Host "Downloading BillSetu v$($versionInfo.version)..." -ForegroundColor Yellow
+# 4. Download BillSetu.jar, icon, and libs.zip
+Write-Host "Downloading BillSetu-1.0.0.jar..." -ForegroundColor Gray
 Invoke-WebRequest -Uri $jarUrl -OutFile $jarPath -UseBasicParsing
 
-if (-not (Test-Path $jarPath)) {
-    throw "Download failed: $jarPath was not created."
+Write-Host "Downloading icon..." -ForegroundColor Gray
+Invoke-WebRequest -Uri $iconUrl -OutFile $iconPath -UseBasicParsing
+
+if (-not (Test-Path $libsDir) -or ((Get-ChildItem $libsDir -ErrorAction SilentlyContinue | Measure-Object).Count -eq 0)) {
+    Write-Host "Downloading dependencies (libs.zip, first-time only)..." -ForegroundColor Gray
+    $libsZip = Join-Path $env:TEMP "billsetu_libs.zip"
+    Invoke-WebRequest -Uri $libsUrl -OutFile $libsZip -UseBasicParsing
+    New-Item -ItemType Directory -Path $libsDir -Force | Out-Null
+    Expand-Archive -Path $libsZip -DestinationPath $libsDir -Force
+    Remove-Item $libsZip -Force -ErrorAction SilentlyContinue
 }
 
-# Remove old ShopPOS shortcut if present and create BillSetu Desktop Shortcut
-Remove-Item "$env:USERPROFILE\Desktop\ShopPOS.lnk" -ErrorAction SilentlyContinue
+# 5. Create Desktop & Start Menu shortcuts
+$shell = New-Object -ComObject WScript.Shell
+$desktopLink = Join-Path ([Environment]::GetFolderPath("Desktop")) "$appName.lnk"
+$startMenuDir = Join-Path ([Environment]::GetFolderPath("Programs")) $appName
+New-Item -ItemType Directory -Path $startMenuDir -Force | Out-Null
+$startMenuLink = Join-Path $startMenuDir "$appName.lnk"
 
-$icoPath = "$installDir\billsetu.ico"
-try {
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico" -OutFile $icoPath -UseBasicParsing
-} catch {}
+foreach ($lnkPath in @($desktopLink, $startMenuLink)) {
+    $shortcut = $shell.CreateShortcut($lnkPath)
+    $shortcut.TargetPath = $javaw.Source
+    $shortcut.Arguments = "-jar `"$jarPath`""
+    $shortcut.WorkingDirectory = $installDir
+    $shortcut.IconLocation = $iconPath
+    $shortcut.Description = "BillSetu Retail Billing Software"
+    $shortcut.Save()
+}
 
-$ws = New-Object -ComObject WScript.Shell
-$shortcut = $ws.CreateShortcut("$env:USERPROFILE\Desktop\BillSetu.lnk")
-$shortcut.TargetPath = "javaw.exe"
-$shortcut.Arguments = "-jar `"$jarPath`""
-$shortcut.WorkingDirectory = $installDir
-if (Test-Path $icoPath) { $shortcut.IconLocation = $icoPath }
-$shortcut.Save()
-
-Write-Host "BillSetu v$($versionInfo.version) installed! Launching..." -ForegroundColor Green
-Start-Process "javaw.exe" -ArgumentList "-jar `"$jarPath`"" -WorkingDirectory $installDir
+Write-Host "$appName installed successfully!" -ForegroundColor Green
+Start-Process -FilePath $javaw.Source -ArgumentList "-jar `"$jarPath`"" -WorkingDirectory $installDir
