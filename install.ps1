@@ -8,7 +8,8 @@ $libsDir    = Join-Path $installDir "libs"
 $jarPath    = Join-Path $installDir "BillSetu.jar"
 $iconPath   = Join-Path $installDir "billsetu.ico"
 
-$jarUrl     = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/BillSetu-1.0.0.jar"
+$verInfo = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/version.json" -UseBasicParsing
+$jarUrl  = $verInfo.jarUrl
 $libsUrl    = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/libs.zip"
 $iconUrl    = "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico"
 
