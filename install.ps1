@@ -10,8 +10,9 @@ $iconPath   = Join-Path $installDir "billsetu.ico"
 
 $verInfo = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/version.json" -UseBasicParsing
 $jarUrl  = $verInfo.jarUrl
-$libsUrl    = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/libs.zip"
-$iconUrl    = "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico"
+$libsUrl = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/libs.zip"
+$iconUrl = "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico"
+$waUrl   = "https://github.com/suraj-kankal/shoppos-updates/releases/latest/download/wa-bridge.zip"
 
 Write-Host "Installing $appName..." -ForegroundColor Cyan
 
@@ -41,13 +42,16 @@ if ((Test-Path $oldDir) -and (-not (Test-Path (Join-Path $installDir "shop.db"))
     }
 }
 
-# 3. Stop running BillSetu instance if open
+# 3. Stop running BillSetu & wa-bridge instances if open
 Get-CimInstance Win32_Process -Filter "Name = 'javaw.exe' OR Name = 'java.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -like "*BillSetu.jar*" } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -like "*wa-bridge*" } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 # 4. Download BillSetu.jar, icon, and libs.zip
-Write-Host "Downloading BillSetu-1.0.0.jar..." -ForegroundColor Gray
+Write-Host "Downloading BillSetu v$($verInfo.version)..." -ForegroundColor Gray
 Invoke-WebRequest -Uri $jarUrl -OutFile $jarPath -UseBasicParsing
 
 Write-Host "Downloading icon..." -ForegroundColor Gray
@@ -62,7 +66,38 @@ if (-not (Test-Path $libsDir) -or ((Get-ChildItem $libsDir -ErrorAction Silently
     Remove-Item $libsZip -Force -ErrorAction SilentlyContinue
 }
 
-# 5. Create Desktop & Start Menu shortcuts
+# 5. Install Node.js (if missing) & WhatsApp Bridge
+Write-Host "Checking Node.js for WhatsApp integration..." -ForegroundColor Cyan
+try {
+    $nodeExe = "C:\Program Files\nodejs\node.exe"
+    if (-not (Get-Command node -ErrorAction SilentlyContinue) -and -not (Test-Path $nodeExe)) {
+        Write-Host "Installing Node.js LTS..." -ForegroundColor Yellow
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            winget install OpenJS.NodeJS.LTS --silent --accept-package-agreements --accept-source-agreements | Out-Null
+        } else {
+            $nodeMsi = Join-Path $env:TEMP "node-lts.msi"
+            Invoke-WebRequest -Uri "https://nodejs.org/dist/v22.14.0/node-v22.14.0-x64.msi" -OutFile $nodeMsi -UseBasicParsing
+            Start-Process msiexec.exe -ArgumentList "/i `"$nodeMsi`" /qn /norestart" -Wait
+            Remove-Item $nodeMsi -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    $waDir = Join-Path $installDir "wa-bridge"
+    New-Item -ItemType Directory -Force -Path $waDir | Out-Null
+    $waZip = Join-Path $env:TEMP "wa-bridge.zip"
+    Invoke-WebRequest -Uri $waUrl -OutFile $waZip -UseBasicParsing
+    Expand-Archive -Path $waZip -DestinationPath $waDir -Force
+    Remove-Item $waZip -Force -ErrorAction SilentlyContinue
+
+    $npmCmd = if (Test-Path "C:\Program Files\nodejs\npm.cmd") { "C:\Program Files\nodejs\npm.cmd" } else { "npm.cmd" }
+    Push-Location $waDir
+    & $npmCmd install --omit=dev --silent
+    Pop-Location
+} catch {
+    Write-Host "WhatsApp Bridge setup skipped: $_" -ForegroundColor DarkYellow
+}
+
+# 6. Create Desktop & Start Menu shortcuts
 $shell = New-Object -ComObject WScript.Shell
 $desktopLink = Join-Path ([Environment]::GetFolderPath("Desktop")) "$appName.lnk"
 $startMenuDir = Join-Path ([Environment]::GetFolderPath("Programs")) $appName
