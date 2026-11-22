@@ -10,9 +10,9 @@ $iconPath   = Join-Path $installDir "billsetu.ico"
 
 $verInfo = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/version.json" -UseBasicParsing
 $jarUrl  = $verInfo.jarUrl
-$libsUrl = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.0/libs.zip"
+$libsUrl = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.5/libs.zip"
 $iconUrl = "https://raw.githubusercontent.com/suraj-kankal/shoppos-updates/main/billsetu.ico"
-$waUrl   = "https://github.com/suraj-kankal/shoppos-updates/releases/latest/download/wa-bridge.zip"
+$waUrl = "https://github.com/suraj-kankal/shoppos-updates/releases/download/v1.0.5/wa-bridge.zip"
 
 Write-Host "Installing $appName..." -ForegroundColor Cyan
 
