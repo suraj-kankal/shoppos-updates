@@ -22,11 +22,20 @@ if (-not $javaw) {
     Write-Host "Java not found. Installing Eclipse Temurin JRE..." -ForegroundColor Yellow
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         winget install --id EclipseAdoptium.Temurin.21.JRE -e --silent --accept-package-agreements --accept-source-agreements
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-        $javaw = Get-Command javaw.exe -ErrorAction SilentlyContinue
+    } else {
+        $javaMsi = Join-Path $env:TEMP "temurin21-jre.msi"
+        Invoke-WebRequest -Uri "https://api.adoptium.net/v3/installer/latest/21/ga/windows/x64/jre/hotspot/normal/eclipse" -OutFile $javaMsi -UseBasicParsing
+        Start-Process msiexec.exe -ArgumentList "/i `"$javaMsi`" /qn /norestart" -Wait
+        Remove-Item $javaMsi -Force -ErrorAction SilentlyContinue
+    }
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    $javaw = Get-Command javaw.exe -ErrorAction SilentlyContinue
+    if (-not $javaw) {
+        $fallbackJavaw = Get-ChildItem "C:\Program Files\Eclipse Adoptium" -Filter "javaw.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($fallbackJavaw) { $javaw = Get-Command $fallbackJavaw.FullName }
     }
     if (-not $javaw) {
-        throw "Java is required. Please install Java 17+ from https://adoptium.net and run the installer again."
+        throw "Java installation failed. Please install Java 21+ from https://adoptium.net and run again."
     }
 }
 
